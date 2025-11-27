@@ -5,7 +5,7 @@
 // @version      1.0
 // @description  暴力破解玉豆分享密码
 // @author       AWang_Dog
-// @match        https://www.yudou66.com/*.html
+// @match        https://www.yudou6677.top/*.html
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=yudou66.com
 // @grant        none
 // ==/UserScript==
