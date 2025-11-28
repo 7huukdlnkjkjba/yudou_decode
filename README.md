@@ -1,5 +1,7 @@
-**《玉豆分享自动解析脚本》—— 数字世界的破壁者！**
+### **《玉豆分享自动解析脚本》—— 数字世界的破壁人！**
 
+### 实战效果
+![](https://github.com/7huukdlnkjkjba/yudou_decode/blob/main/image.png)
 ---
 
 ### 🛠 【技术黑科技】
