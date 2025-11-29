@@ -6,9 +6,12 @@
 // @description  暴力破解玉豆分享密码（性能优化版）
 // @author       AWang_Dog & 性能优化
 // @match        https://www.yudou6677.top/*.html
+// @match        http://www.yudou6677.top/*.html
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=yudou66.com
 // @grant        none
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js
+// @downloadURL https://update.greasyfork.org/scripts/557262/%E7%8E%89%E8%B1%86%E5%88%86%E4%BA%AB%E8%87%AA%E5%8A%A8%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BC%98%E5%8C%96%E7%89%88%EF%BC%89.user.js
+// @updateURL https://update.greasyfork.org/scripts/557262/%E7%8E%89%E8%B1%86%E5%88%86%E4%BA%AB%E8%87%AA%E5%8A%A8%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BC%98%E5%8C%96%E7%89%88%EF%BC%89.meta.js
 // ==/UserScript==
 
 // 全局状态管理
