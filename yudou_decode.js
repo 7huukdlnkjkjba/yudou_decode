@@ -2,14 +2,13 @@
 // @name         玉豆分享自动解析（优化版）
 // @namespace    https://github.com/AWangDog/yudou_decode/
 // @license      GPLv3
-// @version      2.0
+// @version      3.0
 // @description  暴力破解玉豆分享密码（性能优化版）
 // @author       AWang_Dog & 性能优化
 // @match        https://www.yudou6677.top/*.html
-// @match        http://www.yudou6677.top/*.html
+// @match        https://www.yudou789.top/*.html
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=yudou66.com
 // @grant        none
-// @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js
 // @downloadURL https://update.greasyfork.org/scripts/557262/%E7%8E%89%E8%B1%86%E5%88%86%E4%BA%AB%E8%87%AA%E5%8A%A8%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BC%98%E5%8C%96%E7%89%88%EF%BC%89.user.js
 // @updateURL https://update.greasyfork.org/scripts/557262/%E7%8E%89%E8%B1%86%E5%88%86%E4%BA%AB%E8%87%AA%E5%8A%A8%E8%A7%A3%E6%9E%90%EF%BC%88%E4%BC%98%E5%8C%96%E7%89%88%EF%BC%89.meta.js
 // ==/UserScript==
@@ -21,7 +20,10 @@ const state = {
     triedPasswords: new Set(), // 缓存已尝试的密码
     activeWorkers: [], // 跟踪活跃的worker
     maxWorkers: navigator.hardwareConcurrency || 4, // 根据CPU核心数设置worker数量
-    totalNumbers: 9999
+    totalNumbers: 9999,
+    secretData: null, // 存储Base64加密的secret
+    lockCard: null, // 锁定卡片元素
+    hiddenContent: null // 隐藏内容元素
 };
 
 // 常见密码列表 - 优先尝试
@@ -40,11 +42,8 @@ const commonPasswords = [
 
 // Worker代码模板
 const workerCode = `
-// 导入CryptoJS库（在实际环境中，Worker需要单独加载CryptoJS）
-self.importScripts('https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js');
-
 self.onmessage = function(e) {
-    const { start, end, encryptionItems, triedPasswords } = e.data;
+    const { start, end, secret, triedPasswords } = e.data;
     let found = false;
 
     for (let i = start; i <= end && !found; i++) {
@@ -53,34 +52,20 @@ self.onmessage = function(e) {
         // 跳过已尝试过的密码
         if (triedPasswords.has(pwd)) continue;
 
-        for (const item of encryptionItems) {
-            try {
-                // 尝试解密
-                const decrypted = CryptoJS.AES.decrypt(item, pwd);
-
-                // 验证解密结果是否有效
-                if (decrypted.sigBytes <= 0) continue;
-
-                const result = decrypted.toString(CryptoJS.enc.Utf8);
-
-                // 基本验证：非空、长度合理、包含有效字符
-                if (!result || result.length < 5 || !result.match(/[a-zA-Z0-9]/)) continue;
-
-                // 解码URL编码的结果
-                const decodedResult = decodeURIComponent(result);
-
+        try {
+            // 使用Base64验证密码
+            if (btoa(pwd) === secret) {
                 // 发送成功消息
                 self.postMessage({
                     success: true,
-                    password: pwd,
-                    result: decodedResult
+                    password: pwd
                 });
 
                 found = true;
                 break;
-            } catch (e) {
-                // 静默失败，继续尝试
             }
+        } catch (e) {
+            // 静默失败，继续尝试
         }
     }
 
@@ -88,8 +73,7 @@ self.onmessage = function(e) {
     if (!found) {
         self.postMessage({ success: false, start, end });
     }
-};
-`;
+};`;
 
 // 创建Web Worker
 function createWorker() {
@@ -105,7 +89,7 @@ function cleanupWorkers() {
     state.activeWorkers = [];
 }
 
-// 优化的解密函数
+// 优化的密码验证函数
 function multiDecrypt_(pwd) {
     // 检查是否已尝试过此密码
     if (state.triedPasswords.has(pwd)) {
@@ -120,63 +104,43 @@ function multiDecrypt_(pwd) {
     if (state.canDeCrypt !== 0) return 1;
 
     try {
-        for (const item of window.encryption) {
-            try {
-                // 尝试解密
-                const result = decryptItem(item, pwd);
-
-                // 验证解密结果
-                if (result && isValidDecryption(result)) {
-                    state.canDeCrypt = result;
-                    displayResult(result, pwd);
-                    return 1;
-                }
-            } catch (e) {
-                // 继续尝试下一个加密项
-            }
+        // 使用Base64验证密码
+        if (btoa(pwd) === state.secretData) {
+            state.canDeCrypt = pwd;
+            displayResult(pwd);
+            return 1;
         }
 
         console.log(`密码 ${pwd} 错误`);
         return 0;
     } catch (error) {
-        console.error('解密过程出错:', error);
+        console.error('验证过程出错:', error);
         return 0;
     }
 }
 
-// 单个项解密函数
-function decryptItem(item, pwd) {
-    const decrypted = CryptoJS.AES.decrypt(item, pwd);
-    if (decrypted.sigBytes <= 0) return '';
-
-    const result = decrypted.toString(CryptoJS.enc.Utf8);
-    return decodeURIComponent(result);
-}
-
-// 验证解密结果是否有效
-function isValidDecryption(result) {
-    // 基本验证条件
-    return result &&
-           result.trim() &&
-           !result.includes('undefined') &&
-           result.length > 5 &&
-           /[a-zA-Z0-9]/.test(result);
-}
-
 // 显示解密结果
-function displayResult(result, password) {
+function displayResult(password) {
     state.foundPassword = true;
 
-    // 更新DOM显示结果
-    const resultElement = document.getElementById("result");
-    if (resultElement) {
-        resultElement.innerHTML = result;
-        resultElement.style.color = 'green';
-        resultElement.style.fontWeight = 'bold';
-    }
-
     console.log(`✓ 找到正确密码: ${password}`);
-    console.log(`✓ 解密结果: ${result}`);
+    
+    // 应用密码到输入框并触发表单提交
+    const input = state.lockCard.querySelector('.cl-input');
+    if (input) {
+        input.value = password;
+    }
+    
+    // 触发按钮点击或直接显示内容
+    if (state.lockCard && state.hiddenContent) {
+        // 隐藏锁定卡片
+        state.lockCard.style.opacity = '0';
+        setTimeout(() => {
+            state.lockCard.style.display = 'none';
+            // 显示隐藏内容
+            state.hiddenContent.style.display = 'block';
+        }, 300);
+    }
 
     // 显示成功提示
     showNotification(`找到密码: ${password}`, 'success');
@@ -240,7 +204,7 @@ async function tryCommonPasswords() {
 
 // 使用Web Worker进行暴力破解
 async function bruteForceWithWorkers() {
-    if (!window.encryption || window.encryption.length === 0) {
+    if (!state.secretData) {
         console.error('未找到加密数据，请检查页面是否正确加载');
         return;
     }
@@ -262,9 +226,9 @@ async function bruteForceWithWorkers() {
             worker.onmessage = function(e) {
                 if (e.data.success) {
                     // 找到密码，记录结果
-                    state.canDeCrypt = e.data.result;
+                    state.canDeCrypt = e.data.password;
                     state.foundPassword = true;
-                    displayResult(e.data.result, e.data.password);
+                    displayResult(e.data.password);
                     resolve({ success: true, password: e.data.password });
                 } else {
                     // 当前Worker完成任务
@@ -277,7 +241,7 @@ async function bruteForceWithWorkers() {
             worker.postMessage({
                 start,
                 end,
-                encryptionItems: window.encryption,
+                secret: state.secretData,
                 triedPasswords: state.triedPasswords
             });
         }));
@@ -301,6 +265,22 @@ async function main() {
     console.log(`检测到CPU核心数: ${navigator.hardwareConcurrency || '未知'}`);
 
     try {
+        // 检测加密元素结构
+        const wrapper = document.querySelector('.cl-noindent-wrapper');
+        if (wrapper) {
+            state.secretData = wrapper.getAttribute('data-secret');
+            state.lockCard = wrapper.querySelector('.cl-lock-card');
+            state.hiddenContent = wrapper.querySelector('.cl-hidden-content');
+            
+            console.log(`检测到加密元素: secret=${state.secretData}`);
+        }
+        
+        if (!state.secretData) {
+            console.error('未检测到加密数据，请检查页面结构');
+            showNotification('未检测到加密数据', 'error');
+            return;
+        }
+
         // 1. 首先尝试常用密码
         const commonPasswordFound = await tryCommonPasswords();
 
